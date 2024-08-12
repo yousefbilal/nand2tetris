@@ -19,32 +19,28 @@ const (
 
 type Parser struct {
 	scanner        *bufio.Scanner
-	comment_regex  *regexp.Regexp
-	a_regex        *regexp.Regexp
-	c_regex        *regexp.Regexp
-	l_regex        *regexp.Regexp
+	commentRegex   *regexp.Regexp
+	aRegex         *regexp.Regexp
+	cRegex         *regexp.Regexp
+	lRegex         *regexp.Regexp
 	currentCommand string
 	commandType    Command
 }
 
-func NewParser(input_file string) *Parser {
-	file, err := os.Open(input_file)
-	if err != nil {
-		panic(err)
-	}
-	fileScanner := bufio.NewScanner(file)
+func NewParser(inputFile *os.File) *Parser {
+	fileScanner := bufio.NewScanner(inputFile)
 	fileScanner.Scan()
-	comment_regexp := regexp.MustCompile(`^\s*//.*$`)
-	a_regex := regexp.MustCompile(`^@(?:(\d+)|([A-Za-z_.$:][\w.$:]*))$`)
-	c_regex := regexp.MustCompile(`^(?:(A?M?D?)=)?([AMD+-01!&|]{1,3})(?:;([JGTEQLNMP]{0,3}))?$`)
-	l_regex := regexp.MustCompile(`^\((\d+)|([A-Za-z_.$:][\w.$:]*)\)$`)
+	commentRegex := regexp.MustCompile(`^\s*//.*$`)
+	aRegex := regexp.MustCompile(`^@(?:(\d+)|([A-Za-z_.$:][\w.$:]*))$`)
+	cRegex := regexp.MustCompile(`^(?:(A?M?D?)=)?([AMD+-01!&|]{1,3})(?:;([JGTEQLNMP]{0,3}))?$`)
+	lRegex := regexp.MustCompile(`^\((\d+)|([A-Za-z_.$:][\w.$:]*)\)$`)
 
 	return &Parser{
 		scanner:        fileScanner,
-		comment_regex:  comment_regexp,
-		a_regex:        a_regex,
-		c_regex:        c_regex,
-		l_regex:        l_regex,
+		commentRegex:   commentRegex,
+		aRegex:         aRegex,
+		cRegex:         cRegex,
+		lRegex:         lRegex,
 		currentCommand: "",
 		commandType:    NONE,
 	}
@@ -52,27 +48,28 @@ func NewParser(input_file string) *Parser {
 
 func (p *Parser) HasMoreCommands() bool {
 	text := strings.TrimSpace(p.scanner.Text())
-	for len(text) == 0 || p.comment_regex.MatchString(text) {
+	for len(text) == 0 || p.commentRegex.MatchString(text) {
 		if !p.scanner.Scan() {
 			return false
 		}
 		text = strings.TrimSpace(p.scanner.Text())
 	}
-	return p.c_regex.MatchString(text) || p.a_regex.MatchString(text) || p.l_regex.MatchString(text)
+	return p.cRegex.MatchString(text) || p.aRegex.MatchString(text) || p.lRegex.MatchString(text)
 }
 
 func (p *Parser) Advance() {
 	p.currentCommand = strings.TrimSpace(p.scanner.Text())
 	switch {
-	case p.a_regex.MatchString(p.currentCommand):
+	case p.aRegex.MatchString(p.currentCommand):
 		p.commandType = A_COMMAND
-	case p.c_regex.MatchString(p.currentCommand):
+	case p.cRegex.MatchString(p.currentCommand):
 		p.commandType = C_COMMAND
-	case p.l_regex.MatchString(p.currentCommand):
+	case p.lRegex.MatchString(p.currentCommand):
 		p.commandType = L_COMMAND
 	default:
 		p.commandType = INVALID
 	}
+	p.scanner.Scan()
 }
 
 func (p *Parser) CommandType() Command {
@@ -80,15 +77,15 @@ func (p *Parser) CommandType() Command {
 }
 
 func (p *Parser) aSubmatch(text string) []string {
-	return p.a_regex.FindStringSubmatch(text)
+	return p.aRegex.FindStringSubmatch(text)
 }
 
 func (p *Parser) cSubmatch(text string) []string {
-	return p.c_regex.FindStringSubmatch(text)
+	return p.cRegex.FindStringSubmatch(text)
 }
 
 func (p *Parser) lSubmatch(text string) []string {
-	return p.l_regex.FindStringSubmatch(text)
+	return p.lRegex.FindStringSubmatch(text)
 }
 
 func (p *Parser) Symbol() string {
