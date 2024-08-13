@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"io"
 	"os"
 	"regexp"
 	"strings"
@@ -18,6 +19,7 @@ const (
 )
 
 type Parser struct {
+	inputFile      *os.File
 	scanner        *bufio.Scanner
 	commentRegex   *regexp.Regexp
 	aRegex         *regexp.Regexp
@@ -31,11 +33,12 @@ func NewParser(inputFile *os.File) *Parser {
 	fileScanner := bufio.NewScanner(inputFile)
 	fileScanner.Scan()
 	commentRegex := regexp.MustCompile(`^\s*//.*$`)
-	aRegex := regexp.MustCompile(`^@(?:(\d+)|([A-Za-z_.$:][\w.$:]*))$`)
+	aRegex := regexp.MustCompile(`^@((?:\d+)|(?:[A-Za-z_.$:][\w.$:]*))$`)
 	cRegex := regexp.MustCompile(`^(?:(A?M?D?)=)?([AMD+-01!&|]{1,3})(?:;([JGTEQLNMP]{0,3}))?$`)
-	lRegex := regexp.MustCompile(`^\((\d+)|([A-Za-z_.$:][\w.$:]*)\)$`)
+	lRegex := regexp.MustCompile(`^\(([A-Za-z_.$:][\w.$:]*)\)$`)
 
 	return &Parser{
+		inputFile:      inputFile,
 		scanner:        fileScanner,
 		commentRegex:   commentRegex,
 		aRegex:         aRegex,
@@ -54,7 +57,7 @@ func (p *Parser) HasMoreCommands() bool {
 		}
 		text = strings.TrimSpace(p.scanner.Text())
 	}
-	return p.cRegex.MatchString(text) || p.aRegex.MatchString(text) || p.lRegex.MatchString(text)
+	return true
 }
 
 func (p *Parser) Advance() {
@@ -108,4 +111,9 @@ func (p *Parser) Comp() string {
 
 func (p *Parser) Jump() string {
 	return p.cSubmatch(p.currentCommand)[3]
+}
+
+func (p *Parser) Reset() {
+	p.inputFile.Seek(0, io.SeekStart)
+	p.scanner = bufio.NewScanner(p.inputFile)
 }
